@@ -5,18 +5,37 @@
 	<script type="text/javascript">
 		function doItOneRoundReally() {
 			console.log("Did it." + (i++));
+			
+			if (typeof onProgress === "function") {
+				onProgress();
+			}
 		}
 
 		var done = false;
 		var i = 0;
+		var status = "";
+		var idledTime = 0;
+		var onIdleCalled = false;
 		function doItIntervally(whenDone) {
 			if (!isDone()) {
-				doItOneRoundReally();
+				if (status === "pausing") {
+					console.log(status);
 
-				setTimeout(function() { doItIntervally(whenDone); }, 2000);
+					nextRound();
+				}else if (status == "stopping") {
+					console.log(status);
+				} else {
+					doItOneRoundReally();
+					nextRound(whenDone);
+				}
+				
 			} else {
-				whenDone();
+				executeCallback(whenDone);
 			}
+		}
+
+		function nextRound(whenDone) {
+			setTimeout(function () { doItIntervally(whenDone); }, 2000);
 		}
 		
 		function isDone() {
@@ -24,15 +43,126 @@
 		}
 		
 		function doItUntilDone(whenDone) {
-			doItIntervally(whenDone);
+			start(whenDone);
 		}
 
 		function doIt() {
 			doItUntilDone(function() { alert("done!"); });
 		}
+		
+		function onProgress() {
+			console.log("progress: " + i);
+		}
+		
+		function monitorUserActivity() {
+			attachEvent(document, "mousemove", function () {
+				pauseAndLog("mousemove");
+			});
+			attachEvent(document, "keydown", function() {
+				pauseAndLog("keydown");
+			});
+			attachEvent(document, "click", function() {
+				pauseAndLog("click");
+			});
+
+			document.onIdle = function() {
+				resume();
+				console.log("resumed by user idle.");
+			};
+
+			setInterval(function () {
+				idledTime += 500;
+				console.log("user idled " + idledTime + " milliseconds.");
+				
+				if (idledTime > 5000) {
+					if (typeof document.onIdle === "function" && !onIdleCalled) {
+						document.onIdle();
+
+						onIdleCalled = true;
+					}
+				}
+			}, 500);
+
+			function pauseAndLog(me) {
+				pause(function() {
+					console.log("pausing by " + me);
+				});
+
+				resetIdleTimer();
+			}
+			
+			function resetIdleTimer() {
+				idledTime = 0;
+				onIdleCalled = false;
+			}
+		}
+		
+		function start(whenDone) {
+			doItIntervally(whenDone);
+			monitorUserActivity();
+		}
+		
+		function pause(callback) {
+			if (status === "") {
+				status = "pausing";
+
+				executeCallback(callback);
+			}
+		}
+		
+		function resume(callback) {
+			status = "";
+
+			executeCallback(callback);
+		}
+
+		function stop(callback) {
+			status = "stopping";
+
+			executeCallback(callback);
+		}
+		
+		function executeCallback(callback) {
+			if (typeof callback === "function") {
+				callback();
+			}
+		}
+
+		function attachEvent(obj, event, func, userCapture) {
+			if (obj.attachEventListener) {
+				obj.addEventListener(event, func, !!userCapture);
+				return true;
+			}else if (obj.attachEvent) {
+				return obj.attachEvent("on" + event, func);
+			} else {
+				try {
+					var handler = obj["on" + event];
+					
+					if (typeof handler === "function") {
+						obj["on" + event] = function () {
+							var argsArray = Array.prototype.slice.call(arguments);
+							handler.apply(this, argsArray);
+							func.apply(this, argsArray);
+						};
+					} else {
+						obj["on" + event] = func;
+					}
+
+					return true;
+				} catch (ex) {
+					throw ex;
+				}
+			}
+		}
+
+		function test() {
+			attachEvent(document, "mousemove", function() {
+				alert("hello");
+			});
+		}
 	</script>
 </head>
-<body onload="doIt();">
-
+	<body onload="doIt();">
+	<h3>Awesome Scheduler!</h3>
 </body>
 </html>
