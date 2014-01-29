@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<title>Basic Usage</title>
+	<script type="text/javascript">
+		function doItOneRoundReally() {
+			console.log("Did it." + (i++));
+		}
+
+		var done = false;
+		var i = 0;
+		function doItIntervally(whenDone) {
+			if (!isDone()) {
+				doItOneRoundReally();
+
+				setTimeout(function() { doItIntervally(whenDone); }, 2000);
+			} else {
+				whenDone();
+			}
+		}
+		
+		function isDone() {
+			return i >= 20;
+		}
+		
+		function doItUntilDone(whenDone) {
+			doItIntervally(whenDone);
+		}
+
+		function doIt() {
+			doItUntilDone(function() { alert("done!"); });
+		}
+	</script>
+</head>
+<body onload="doIt();">
+
+</body>
+</html>
